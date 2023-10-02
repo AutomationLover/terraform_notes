@@ -56,6 +56,45 @@ resource "aws_subnet" "example" {
 
 总的来说，`count` 和 `for_each` 提供了在Terraform中创建和管理多个资源的强大方法。根据使用的场景和需求，你可以选择最适合的方式来使用。
 
+## TF Backend
+在Terraform中，backend用于存储状态文件和执行锁定和状态操作。S3和DynamoDB常被一起使用作为Terraform的backend，各自的作用如下：
+
+- **S3**：S3被用作存储Terraform的状态文件。当你运行Terraform时，它会创建一个状态文件来跟踪它所管理的资源。这个状态文件需要被安全地存储。通过将状态文件存储在远程的S3 Bucket中，可以确保所有团队成员都能访问到最新的状态信息。
+
+- **DynamoDB**：DynamoDB被用作提供状态锁定。当多人或多个系统同时运行Terraform时，状态锁定可以防止他们同时修改状态文件，引发冲突或数据损坏。DynamoDB提供了一个高效且可靠的锁定机制。
+
+在DynamoDB表中，Terraform会创建一个包含以下信息的记录：
+
+- LockID：这是一个唯一标识符，通常是由后端类型（在这个例子中是"S3"）、Bucket名和状态文件键名（Key）组合而成的。
+- Info：这个字段包含了一些关于锁定的元数据，如创建锁定的时间，谁创建的锁定等。
+- Digest：这是状态文件的内容的摘要，用于在解锁的时候核对状态文件没有被更改。
+
+当锁定被释放时，这个记录会从DynamoDB表中移除。
+
+
+这是一个配置S3和DynamoDB作为Terraform Backend的例子：
+
+```tf
+terraform {
+  backend "s3" {
+    bucket         = "mybucket"
+    key            = "path/to/my/key"
+    region         = "us-west-2"
+    dynamodb_table = "mytable"
+    encrypt        = true
+  }
+}
+```
+
+在这个配置里：
+
+- `bucket` 是你的S3 bucket的名称，Terraform会在这个bucket里存储它的状态文件。
+- `key` 是在这个bucket里的路径，Terraform会在这里存储它的状态文件。
+- `region` 是这个bucket所在的AWS region。
+- `dynamodb_table` 是你的DynamoDB表的名称，Terraform会使用这个表来进行状态锁定。
+- `encrypt` 是一个可选的字段，如果设置为 `true`，那么Terraform会在将状态文件存储到S3之前先进行加密。
+
+以上就是如何使用S3和DynamoDB作为Terraform的backend。这种配置可以确保你的Terraform状态文件被安全且可靠地存储，同时还可以避免多个Terraform操作同时发生的可能冲突。
 
 ## TF使用
 1. 初始化: `terraform init` 命令用来初始化Terraform工作目录，包括下载所需的Terraform providers、设置后端等。这是在每个Terraform项目中运行一次的命令。初始化过程中，Terraform会检查配置文件，并下载所有需要的provider插件。
