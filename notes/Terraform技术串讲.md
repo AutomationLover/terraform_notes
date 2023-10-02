@@ -219,4 +219,36 @@ terraform apply
 
 以上就是如何在Terraform项目中为不同环境设置和使用不同的变量文件。通过这种方式，我们可以很容易地管理和切换不同环境的配置。
 
+在某些情况下，每个环境下可能并不需要一个单独的`main.tf`文件，而只需要一个`terraform.tfvars`文件来定义这个环境中所需的特定变量即可。
+
+具体做法是，你可以在根目录的`main.tf`文件中定义所有环境共享的基础设施和资源，并使用变量来适应每个环境的不同配置。然后，在每个环境的目录下，通过`terraform.tfvars`文件提供这些变量的值。
+
+例如：
+
+根目录的 `main.tf` 文件：
+```tf
+module "ec2_instance" {
+  source        = "./modules/ec2_instance"
+  ami           = var.ami
+  instance_type = var.instance_type
+}
+```
+
+开发环境的 `terraform.tfvars` 文件：
+
+```
+ami = "ami-abc123"
+instance_type = "t2.micro"
+```
+
+生产环境的 `terraform.tfvars` 文件：
+
+```
+ami = "ami-def456"
+instance_type = "t2.large"
+```
+
+然后，你可以在每个环境的目录下运行 `terraform apply -var-file=terraform.tfvars` 来应用对应环境的配置。
+
+这种做法的优点是可以简化项目结构，减少重复的代码。但也有缺点，比如当不同环境需要不同的资源或配置时，可能需要增加更多的条件逻辑来处理这些差异。因此，选择何种方式取决于你的具体需求和情况。
 
